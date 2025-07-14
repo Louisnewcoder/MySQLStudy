@@ -37,6 +37,15 @@ FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 DELETE FROM users WHERE user_id = 100;  -- 自动删除orders表中相关记录
 ```
 
+### Index的概念
+索引是加速查询操作的数据结构，索引通常建立在表的一个或多个字段上，便于快速定位数据，而不必扫描整个表。
+它对 `Where`, `Join`, `Order by`, `Gorup by`等查询有效率提升。**表越大越重要**。
+
+#### 使用索引的缺点
+会占用额外的空间，另外执行`Insert/Update/Delete`等操作时，索引也需要维护，可能会影响性能。
+
+***需要注意的是： 可以在经常用来查询、排序、过滤的字段上建议添加索引； 避免在频繁更新的字段上建立太多索引； 不要对低选择度的字段添加索引(比如只有2-3个值的字段，男女，大小，真假等)***
+
 
 
 ## Structred Query Language 语法
@@ -70,9 +79,92 @@ DELETE FROM users WHERE user_id = 100;  -- 自动删除orders表中相关记录
 ### 基础查询
 `SHOW DATABASES;` - 展示所有一创建的databases
 `SHOW TABLES；` - 展示*当前*仓库所有的tables， 这个命令需要进入一个Database之后才有用
+`DESCRIBE <table name>;` - 展示对指定表的描述
+
 
 ### 基础使用
 #### 针对DataBase操作
 `USE <DataBaseName>；`  进入一个已经存在的Database
 `DROP DATABASE <DataBaseName>;` 删除一个名为 *DataBaseName*的Database。有趣的是`删除`一个database不是Delete而是**`Drop`**
 `CREATE DATABASE <DataBaseName>;`   创建一个指定名称为 *DataBaseName*的Database
+
+
+
+
+##### 针对表的操作
+###### 创建表
+`CREATE TABLE <TableName> ( column声明1, column声明2，...... column声明n)；`
+
+```sql
+create table products(
+	id int auto_increment primary key,  # <column Name> Type 自增 为主键
+    name varchar(30), # <column Name> Type(长度为30)
+    price decimal(3,2) # <column Name> Type(一共3位数，小数点后保留2位）
+);
+```
+###### 删除表
+`DROP TABLE <Tablename>;` - 这个命令会将整个表从database中移除
+
+###### 清除表的内容但保留表 Truncate Table
+`Truncate TABLE <TableName>`
+
+###### 创建Foreign Key
+在创建表的时候，一般在定义完表内的各个 `字段(列)` 之后，使用语法对 `指定用于Foreign Key的列进行绑定`。
+***注意： 子表中用于指定作为foreign key的 column 和 父表的parent key column都是用 `()` 包裹的***
+`FOREGIN KEY  ( <column name for foreign key> )  REFERENCES <parentTableName>(<parent Key Column>)`
+
+```sql
+create table orders(
+    id int auto_increment primary key,
+    product_id int,
+    customer_id int,
+    order_time datetime,
+    foreign key (product_id) references products(id),
+    foreign key (customer_id) references customers(id)
+);
+```
+
+###### 修改表
+修改表的命令以`ALTER TABLE <target Table name>` 开始，然后加上要进行的`操作的指令`
+
+1. 插入列
+`ALTER TABLE <table name> ADD COLUMN <column name> COLUMNTYPE`
+
+```sql
+alter table proudcts add column coffee_origin varchar(30); --对表 products 添加一列，字段为 coffee_origin， 类型为varchar其长度为30
+
+-- 也可以一次添加多个列，只需要连续添加使用 add column子句即可
+ alter table pets add column test1 int, add column test2 varchar(10);
+```
+2. 删除列
+`ALTER TABLE <table name> DROP COLUMN <column name>`
+
+```sql
+alter table products drop column coffee_origin; -- 在products表上，删除列名为  coffee_origin 的列
+
+-- 也可以一次删除多个列，只需要连续添加 drop column 子句即可
+ alter table pets drop column test1, drop column test2;
+```
+
+3. 添加Primary key
+`ALTER TABLE <table name> ADD PRIMARY KEY (<column name>);`
+**注意：指定的column name是被 `()` 包裹的**
+
+4. 删除Primary Key
+`ALTER TABLE <table name> DROP PRIMARY KEY;`
+
+5. 修改 当前列是否可以接受 NULL 值
+只需要在`ALTER TABLE` 语句中使用 `MODIFY <column name> <original type>`
+
+```sql
+Alter table addresses modify id int;
+```
+6. 设置Foreign Key
+如果是单独设置 foreign key的话，在`ALTER TABLE`后 添加一个`constraint` 名称，然后使用foreign key的常规绑定语句。
+其实
+
+```sql
+ alter table people 
+ add constraint FK_PeopleAddress -- 单独声明constraint的名字，方便后面管理
+ foreign key (address_id) references addresses(id);
+```
