@@ -10,23 +10,32 @@ root账号是最高权限账号。创建好之后妥善保管账号密码；
 日常对数据库进行管理不要使用root账号。创建一个管理员级别账号用于日常管理 - *DBAdmin -级别的账号。通过workbench为这个账号创建链接，每次使用这个链接登录数据库。
 
 ## MySQL 关键概念
-### Key的概念
+### 约束
+约束是数据库的强制规则，要求数据只在符合规则的前提下才能存入数据库。比如：
+指定某列不能为Null；
+指定某个列的值必须>=100才能存入；
+......
+
+是约束的内容有： `Primary Key`, `Foreign Key`, `Unique`, `Check/Not Null`。
+另外 `Default` 有的资料称之为约束，有的不是。因为它不强制，只是数据库自己填了默认值。
+
+#### Key的概念
 `Key`是数据库中用于标识记录、建立约束、或加速查询的数据字段。
 `key`不单指一种类型，而是一个统称，包括Primary Key、Foreign Key、Unique Key、Index Key等。
 
-#### Primary Key
+##### Primary Key
 又称`主键`，用来**唯一标识每一行数据的字段**。 一张表只能由一个`Primary Key`，但是它可以由多个列组成。
 由多个列组成的`Primary Key`称为*复合主键*。
 
 ***需要注意的是： 它的值不能重复； 不允许为 null；默认创建唯一索引***
 ***另外，通常建议使用一个简单的、不可变的字段作为主键，比如自增ID。 如果主键是复合键，需要注意后续的索引策略和表关联的复杂性***
 
-#### Foreign Key
+##### Foreign Key
 它的作用是**用于建立两个表之间的关系**。`Foreign key` 引用另一个表的主键或唯一键。
 在设置`Foreign Key`的表是子表，这个key引用的表称为父表。
 子表上Foreign Key的类型必须与附表的引用值类型一致。
 
-***建议对外键加索引，提高Join性能***
+***建议对外键加索引，提高Join性能***。但实际上自己看的教程提到，foreign key创建时，会添加一个index。
 ***另外使用外键之后因为产生了表之间的关联，所以在Insert或Delete的时候就要注意数据插入的顺序。 插入的时候父表要先插入，否则当父表对应键值不存在时，子表插入会失败； 对应的删除父表数据的时候，要先删除子表的外键关联的数据***
 
 如果设置外键时定义了 `ON DELETE Cascade`。这个操作可以在删除父表内容时，自动删除对应子表的外键行。
@@ -36,12 +45,15 @@ FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 -- 删除操作：
 DELETE FROM users WHERE user_id = 100;  -- 自动删除orders表中相关记录
 ```
+##### Unique Key
+限制指定列的值不能重复。比如个名称列，不能有两个或以上的人叫同一个名字。
+
 
 ### Index的概念
-索引是加速查询操作的数据结构，索引通常建立在表的一个或多个字段上，便于快速定位数据，而不必扫描整个表。
+**索引不是约束**。索引是加速查询操作的数据结构，索引通常建立在表的一个或多个字段上，便于快速定位数据，而不必扫描整个表。
 它对 `Where`, `Join`, `Order by`, `Gorup by`等查询有效率提升。**表越大越重要**。
 
-#### 使用索引的缺点
+##### 使用索引的缺点
 会占用额外的空间，另外执行`Insert/Update/Delete`等操作时，索引也需要维护，可能会影响性能。
 
 ***需要注意的是： 可以在经常用来查询、排序、过滤的字段上建议添加索引； 避免在频繁更新的字段上建立太多索引； 不要对低选择度的字段添加索引(比如只有2-3个值的字段，男女，大小，真假等)***
@@ -151,7 +163,10 @@ alter table products drop column coffee_origin; -- 在products表上，删除列
 **注意：指定的column name是被 `()` 包裹的**
 
 4. 删除Primary Key
+先删除`Auto_Increment约束`,然后执行下面的命令。
 `ALTER TABLE <table name> DROP PRIMARY KEY;`
+***要注意的是： 要先删除 `AUTO_INCREMENT` 约束***
+
 
 5. 修改 当前列是否可以接受 NULL 值
 只需要在`ALTER TABLE` 语句中使用 `MODIFY <column name> <original type>`
@@ -161,10 +176,124 @@ Alter table addresses modify id int;
 ```
 6. 设置Foreign Key
 如果是单独设置 foreign key的话，在`ALTER TABLE`后 添加一个`constraint` 名称，然后使用foreign key的常规绑定语句。
-其实
+
+***注意：很多时候在创建table的时候没有声明constraint 是因为MySQL自动为指定为ForeignKey的column创建了默认名称的constraint。实际上是非常建议开发者在这个时候手动指定constraint名称的***
+
+***另外，创建foreign key的时候MySQL会自动创建一个同名（constraint名称）索引，所以删除的时候也应该这个索引删掉***
 
 ```sql
  alter table people 
  add constraint FK_PeopleAddress -- 单独声明constraint的名字，方便后面管理
  foreign key (address_id) references addresses(id);
 ```
+
+7. 删除Foreign Key
+```sql
+    alter table people
+    drop foreign key FK_NewFKAddress,  -- 这个指令与下面一行是同级，所以用`,`分隔。
+    drop index FK_NewFKAddress; -- 把系统创建的同名索引也删掉
+
+    -- 也可以分开写效果一样
+    alter table people drop foreign key FK_NewFKAddress;
+
+    alter table people drop index FK_NewFKAddress;
+```
+
+8. 添加与删除 Unique 约束
+在`ALTER TABLE`语句后，使用 ` ADD CONSTRAINT <constraint name> UNIQUE (<target column>);` 语法添加Unique CONSTRAINT；
+然后使用 `DROP INDEX <constraint name>;` 删除对应的约束。
+
+```sql
+describe pets;
+Alter table pets
+add constraint unique_species Unique (species);
+
+alter table pets
+drop index unique_species;
+```
+
+9. 修改列的名字
+可以使用 `Change` 命令和 `Rename column`命令。
+
+```sql
+
+    -- 使用Change 命令 必须要输入 TYPE 如果不改就输入原来的TYPE类型
+    alter table pets
+    change species animal_type varchar(20); -- CHANGE <current name> <target name> TYPE
+
+    -- 使用 Rename column命令只更改名字 必须使用 TO 关键字链接
+    alter table pets 
+    rename column animal_type to species; -- RENAME COLUMN <current name> TO <target name>;
+```
+
+10. 修改列的类型
+除了前面提到的`Change`命令，还可以使用`Modify Column <column name> [TYPE]`。
+***需要注意的是： 如果数据表中这一列还没有数据之前，可以随便转换。但是当有了数据之后，只能进行兼容的转换。比如将字段从varchar 转换成char，或者int都是不允许的。 从同类型，从小转到大就可以，比如 int 到bigint， decimal(5,2) 转到 decimal(10,3)***
+一些特殊情况`DATE`类型到`varchar`类型是允许的。 
+
+***另外，当想给一个字段添加约束是，比如 not null。 如果已经有了数据，必须要保证当前所有数据的值都不是null 才能修改成功。***
+
+```sql
+    alter table pets 
+    modify column food int; -- 把名为 food的列从一个其他的类型转换为 int   
+
+```
+## Data Manipulation Language
+### Insert Data
+基础语法
+数值型数据`不需要引号`， 字符型数值需要 `单引号` 包裹。虽然`双引号`也可能工作，但是可能会有潜在问题。所以要保持良好的习惯使用**单引号**
+
+#### 单次插入一条
+`INSERT INTO <table name> ( <column1>, <column2>，...<columnN>  )  VALUES ( column1_value, column2_value, columnN_value);`
+#### 单次插入多条
+```sql
+INSERT INTO <table name> ( <column1>, <column2>，...<columnN>  )  VALUES
+ ( column1_value, column2_value, columnN_value),    -- 第一行
+ ( column1_value, column2_value, columnN_value),    -- 第二行
+ ...
+ ( column1_value, column2_value, columnN_value)     -- 第N行
+ ; 
+ ```
+
+### Update Data
+***默认情况 sql_safe_updates 的检查是开着的***
+当`sql_safe_updates`开着的时候 `WHERE` 子句只能用`KEY`来匹配，例如用某个表的primary key `id=999`。
+
+如果想使用其他匹配方式最简单的方式是把它关掉 `SET sql_safe_updates=0 / false`。虽然还有其他方法，现在新手阶段先用这个。
+
+使用语法：
+
+```sql
+UPDATE <table Name>     
+SET <column name> = <value>   -- set 子句设置改变的内容，可以是一个或若干个字段以及每个字段要修改的值
+WHERE <match condition>; -- WHERE 子句用来匹配要修改哪行或哪几行的数据，具体修改了多少以匹配结果来定
+```
+#### 更新一个字段的值
+```sql
+update products
+set price = 9.00   -- set 子句控制改变的内容，这里是price字段
+where id=7;         -- 这里只修改 id=7 的那一行数据的 price字段的值
+```
+
+#### 更新若干个字段的值
+```sql
+update products
+set price = 5.50, coffee_origin = 'China' -- 更新了price字段和coffee_origin字段的值
+where id=7;
+```
+
+### Delete Data
+使用语法：
+```sql
+DELETE FROM <table name>
+WHERE <match condition>;
+
+-- examples
+Delete from people
+where first_name = 'Babara';
+
+Delete from people
+where age <=30;
+```
+
+***警告！！！如果 `sql_safe_updates`关闭了， 那么 `DELETE FROM <table name>;` 这一行命令就可以删除整个表的所有数据。十分危险！！！***
