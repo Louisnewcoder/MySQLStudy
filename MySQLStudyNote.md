@@ -61,6 +61,10 @@ DELETE FROM users WHERE user_id = 100;  -- 自动删除orders表中相关记录
 
 
 ## Structred Query Language 语法
+### SQL语句语法顺序
+`SELECT ... FROM ... WHERE ... GROUP BY ... HAVING ... ORDER BY ... LIMIT ...`
+
+
 ### 每一条命令以 *;* 结束
 在SQL中每一条命令都已semicolon *;* 结束
 
@@ -297,3 +301,192 @@ where age <=30;
 ```
 
 ***警告！！！如果 `sql_safe_updates`关闭了， 那么 `DELETE FROM <table name>;` 这一行命令就可以删除整个表的所有数据。十分危险！！！***
+
+### Select Data
+
+查询语句永远都使用 `SELECT < column name / or * > FROM <table name>`开始。如果没有子句，这一行就可以作为一个命令获取所输入的字段名的所有数据。
+***使用 `*` 代表获取全部column的数据***
+
+***重要的事说3遍： SELECT 后面接的是你要看的字段值 然后 FROM 从哪个 <TABLE表> 里看***
+***重要的事说3遍： SELECT 后面接的是你要看的字段值 然后 FROM 从哪个 <TABLE表> 里看***
+***重要的事说3遍： SELECT 后面接的是你要看的字段值 然后 FROM 从哪个 <TABLE表> 里看***
+
+```sql
+    select first_name from customers; -- 查询 `first_name` 1个列的全部内容
+
+    select first_name,last_name,phone_number from customers; -- 查询 `first_name`, `last_name`, `phone_number` 3个列的全部内容
+  
+    select * from customers; -- 查询整个表所有列的内容
+```
+#### 结合WHERE子句
+只需要在`SELECT`起始语句后加上`WHERE <column condition>`子句即可。如果有多个条件约束则可以根据需求添加使用`AND <extra column condition>` 或者 `OR <extra column condition>`即可。
+```sql
+   select * from products  -- 查询获取 全部字段 的数据 从products 表中
+    where price>3;          -- 选择price价格字段 值大于3的数据
+    
+	select * from products
+    where price>3                   --选择price价格大于3
+    Or coffee_origin='Colombia';  -- 或者 coffee_origin字段等于 colombia的数据
+    
+    select name from products         -- 查询 name字段 的数据
+    where coffee_origin = 'Colombia' -- 选择 coffee_origin字段等于 colombia
+    and price=3;                        -- 并且 price价格 等于 3 的数据
+```
+
+***PS：在SQL中，数学逻辑符合与C#编程语言一致。 额外多出的是， 不等于符号有两种书写方式，可以自行选择`!=` 或者 `<>` ***
+
+#### Mysql的条件判断运算符
+##### 数学判断运算符
+`>`, `<`, `>=`, `<=`, `!= or <>`
+##### Null判断运算符
+`IS NULL` , `IS NOT NULL`
+
+##### 匹配集合判断运算符 IN 和 NOT IN 
+一次性在一个字段中查询多个条件
+```sql
+select * from customers
+where id in (1,3,5,7,9); -- 值查询id 匹配 1 3 5 7 9的用户数据
+
+select * from customers
+where id not in(1,2,3,4,5,6,7,8,9,10); -- 查询 id 不在1 至 10 的用户 ，也就是从id为11开始获取所有数据
+
+select * from customers
+where id not in(1,2,3,4,5,6,7,8,9,10)
+and gender is not null;  -- 结合 is not null
+```
+
+##### 范围匹配运算符 BETWEEN...AND...
+`BETWEEN <start value> AND <end value>`用于查询在 `start value` 和 `end value` 之间的数据。
+***它实际等价于***
+`WHERE column >= value1 AND column <= value2`
+***要注意的是：如果value1 大于 value2，那么就会返回空***
+***另外在处理字符串时，value2只会匹配到与value2完全相等的数据行，如果长于value2并不会被包含***
+例如:
+```sql
+-- 数据有 Abc，BCD，CEF，D，Da，FFF
+BETWEEN 'A' AND 'D'  -- 只会返回 Abc,BCD,CEF,D。 后面的Da和FFF不会被返回
+```
+
+```sql
+select * from orders
+where order_time between '2023-01-01' and '2023-03-31 23-59-59'; -- 选取 order_time字段值从2023年1月1日凌晨开始到2023年3月31日晚23点59分59秒之间所有的order数据
+
+-- 它的对等操作
+where order_time>= '2023-02-01' and order_time<'2023-03-01'; -- 忽略日期，这里仅作展示
+
+-- 还可以利用MySQL内置函数
+where year(order_time)=2023 and month(order_time)=2; 
+
+
+```
+##### 模糊匹配运算符 LIKE
+使用 `LIKE` 关键字加 ` 带有通配符的字符串 `匹配条件即可模糊查询与`条件相匹配的内容`
+***通配符 `%` 代表任意数量，任意字符的内容 ***
+***通配符 `_` 代表 `一个` 任意字符***
+***另外，模糊查询的条件可以是数值也可以是字符或字符串，但是都需要有用 `''` 单引号包裹起来。***
+
+```sql
+select * from customers
+where last_name LIKE '%o%'; -- 匹配字段 last_name中 任意包含字母 o 的数据行
+
+select phone_number from customers -- 获取phone_number字段的数据行
+where last_name LIKE 'J%';  	-- 匹配条件是 last_name 字段 所有以字母 J 开始的数据
+
+select * from customers
+where first_name LIKE '_o__'; -- 匹配条件是 first_name字段 拥有4个字符 第二个字符是 o 的数据
+
+select * from customers
+where first_name LIKE '__a'; -- 匹配条件是 first_name字段 拥有3个字符 最后一个字符是 a 的数据
+
+select * from products
+where price LIKE '3%';  -- 匹配条件是 price 价格字段 以数值3开头的产品数据
+-- 注意这里虽然 price 的类型是 decimal数值类型，LIKE后面的匹配条件依旧用 '' 包裹
+```
+
+#### Order Data 对查询结果进行排序
+***如果没有 LIMIT 子句 ， ORDER BY 子句永远出现在查询语句的最后。如果有LIMIT子句，LIMIT子句在最后***
+默认情况下排序是 `ASC` - ascending 升序，可以使用关键字 `DESC` - descending 设置为降序。
+***ORDER BY 子句可以跟随多个 字段条件，它们用 `,` 分隔。***有多个条件的子句排序顺序是按照字段顺序，对结果`逐层级`依次排序处理。
+
+```sql
+select * from customers
+order by last_name desc; -- 获取所有数据，根据last_name 字段进行降序排列
+
+select * from customers
+order by last_name asc , first_name desc;  -- 现根据 last_name 升序排列，然后再前者条件结果的基础上对 分段结果 进行基于 first_name 的升序排列。 
+-- 在这个例子中， asc 可以省略，因为默认就是ascending 排序
+```
+
+#### Distinct Data 获取唯一值 即 去重
+在查询语句的列名前加入关键字`DISTINCT`就可以获取列名或列名组合的唯一值 - **也就是去重**
+ `SELECT DISTINCT <column name>`或   `SELECT DISTINCT <column name1>,..,<column namen>,`
+
+ ```sql
+ select distinct customer_id from orders; -- 获取 customer_id 去重
+
+ select distinct customer_id,product_id from orders -- 获取 customer_id和product_id的组合 去重
+ order by customer_id;
+ ```
+#### Limit Data 限制每页呈现的数据数量
+在查询语句的最后使用`LIMIT <display count>`来限制展示数据的数量。语法：
+1. `LIMIT <display count>;`
+2. `LIMIT <display count> OFFSET <每页偏移>;`
+3. `LIMIT <每页偏移>, <display count>;`
+
+```sql
+select * from customers
+Limit 5;
+
+select * from customers
+Limit 5 offset 10;
+
+select * from customers
+Limit 10,5; -- 效果同上
+
+select * from customers
+order by first_name     -- 结合 order by 子句
+Limit 5 offset 8;
+```
+
+#### 利用 AS 关键字提高查询结果中 列名 的可读性
+有的时候建表的开发者把column的名字起的比较晦涩，对数据库使用者来说的阅读性不是很好。这时数据库使用者可以利用 AS 关键字将查询结果中的列明进行`展示性修改` (即并不修改实际的列名)，从而方便自己阅读数据库。
+
+`Select <column name> AS <desired name for read> FROM <table name>;`
+***AS 关键字是可以省略的，但是同时影响SQL语句的阅读性，所以不建议省略***
+
+```sql
+select coffee_origin as country, name as coffee from products;
+```
+
+### JOIN 从多个表中查询数据
+#### INNER JOIN 查询两个表中的关联值匹配的数据
+`inner join` 只会获取 目标值 同时匹配两个表存在的值的数据行。
+比如查询id = 3 ，如果A和B表中都有 id=3的数据行，那么这个数据行的值就可以被获取。如果任意一个表中不存在id=3的数据行，那么id=3的数据行就不会被查询。
+
+***因为 `INNER JOIN` 是最常见的查询，所以 `INNER`关键字可以省略 ***
+
+```sql
+
+-- 建议为了可读性， 用主表.主键 = 从表.外键 的规则书写
+-- 查询也从主表查询
+select products.name , orders.order_time from products 
+inner join orders on products.id = orders.product_id;
+
+-- 利用 AS 关键字实现简便写法
+select p.name , o.order_time from products as p
+inner join orders as o on p.id = o.product_id;
+
+-- 添加了 WHERE 和 ORDER BY 的写法
+select products.name , orders.order_time from products
+inner join orders on products.id = orders.product_id
+where products.id =4
+order by orders.order_time;
+```
+语法总结：
+```sql
+select <parent table>.<column> ,...,<child table>.<column>,... 
+from  <parent table>
+inner join <child table> on <parent table>.<primary key> = <child table>.<foreign key>
+where clause -- if needed
+order by clause; -- if needed
+```

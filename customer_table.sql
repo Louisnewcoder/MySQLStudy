@@ -1,4 +1,4 @@
-INSERT INTO people (first_name, last_name, gender, phone_number) VALUES
+INSERT INTO customers (first_name, last_name, gender, phone_number) VALUES
 ('James', 'Smith', 'M', '5551234567'),
 ('Emma', NULL, 'F', NULL),
 ('Liam', 'Johnson', NULL, '5559876543'),
