@@ -58,7 +58,9 @@ DELETE FROM users WHERE user_id = 100;  -- 自动删除orders表中相关记录
 
 ***需要注意的是： 可以在经常用来查询、排序、过滤的字段上建议添加索引； 避免在频繁更新的字段上建立太多索引； 不要对低选择度的字段添加索引(比如只有2-3个值的字段，男女，大小，真假等)***
 
-
+### MySQL的赋值运算符与判断运算符
+`=` 可以用作赋值运算符，比如在`Update` 语句中 `SET` 任何类型值都是` 字段 = 值 `包括 `NULL`；
+而在 `JOIN` 或者 `WHERE` 子句中 `=`可以用作常规值**不能用在`NULL`上**。 而 `IS`和`IS NOT`是专门用在`NULL`上的。
 
 ## Structred Query Language 语法
 ### SQL语句语法顺序
@@ -490,3 +492,48 @@ inner join <child table> on <parent table>.<primary key> = <child table>.<foreig
 where clause -- if needed
 order by clause; -- if needed
 ```
+
+#### LEFT JOIN 
+以`左表`为基础，查询结果保留`左表`所有内容的同时，显示`右表`所有匹配的内容。若没有匹配的内容 `右表`在对应的`左表`行处显示的结果全部为Null
+
+语法结构：
+
+```sql
+Select 字段 
+FROM 左表
+LEFT JOIN 右表 ON 左表.字段 = 右表.字段
+
+-- examples
+select c.*, o.* from customers as c
+left join orders as o on c.id = o.customer_id;
+
+-- 结合WHERE子句
+select c.*, o.* from customers as c
+left join orders as o on c.id = o.customer_id
+where o.customer_id is null;
+```
+
+#### RIGHT JOIN
+以`右表`为基础，查询结果保留`右表`所有内容的同时，显示`左表`所有匹配的内容。若没有匹配的内容 `左表`在对应的`右表`行处显示的结果全部为Null
+
+***它和LEFT JOIN是镜像关系。而且MySQL官方也不建议使用RIGHT JOIN 因为有的数据库不持支这个功能。想使用这个功能，就用LEFT JOIN 把左右表的位置调换即可。***
+
+```sql
+Select 字段 
+FROM 左表
+LEFT JOIN 右表 ON 左表.字段 = 右表.字段
+```
+#### 多表联合查询 - 使用多个JOIN
+先看实例
+```sql
+select p.name ,p.price ,c.first_name,c.last_name , o.order_time from products as p
+inner join orders as o On p.id = o.product_id       -- 两个表JOIN 查询获得结果 R1
+inner join customers as c on o.customer_id = c.id   -- 在与第三个表JOIN查询 实际上相当于 R1 与第3个表查询 得到结果R2。如果还有后续的JOIN查询，相当于R2 与下一个表JOIN 查询.... RN与表N进行JOIN查询
+where c.last_name = 'Jones'
+order by first_name;
+```
+
+### 如何创建DataBaseModel diagram并查看
+Top Tools bar -> Database -> Reverse Engineer ->选择`目标connection`->选择`目标DataSchema`->一路下一步，遇到勾选全部勾选->保存自己记得diagram
+
+查看的时候， Top Tools bar -> File -> Open Mode -> 要打开查看的 .mwb model文件 
