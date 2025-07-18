@@ -16,8 +16,15 @@ root账号是最高权限账号。创建好之后妥善保管账号密码；
 指定某个列的值必须>=100才能存入；
 ......
 
-是约束的内容有： `Primary Key`, `Foreign Key`, `Unique`, `Check/Not Null`。
+是约束的内容有： `Primary Key`, `Foreign Key`, `Unique Key`, `Check`,`Null/Not Null`。
 另外 `Default` 有的资料称之为约束，有的不是。因为它不强制，只是数据库自己填了默认值。
+
+#### 约束的添加方式
+***注意： Key类和Check 型约束，需要用 `ADD CONSTRAINT <constraint name>` 添加。`NULL`和`DEFAULT` 可以用 `MODIFY` 添加***
+
+##### 删除约束
+Key类和Check型约束都使用`DROP CONSTRAINT <constriant name>`来删除。如果忘记了或者一开始没有设置，可以在database schema中查看`index`。 
+
 
 #### Key的概念
 `Key`是数据库中用于标识记录、建立约束、或加速查询的数据字段。
@@ -537,3 +544,22 @@ order by first_name;
 Top Tools bar -> Database -> Reverse Engineer ->选择`目标connection`->选择`目标DataSchema`->一路下一步，遇到勾选全部勾选->保存自己记得diagram
 
 查看的时候， Top Tools bar -> File -> Open Mode -> 要打开查看的 .mwb model文件 
+
+## Concepts of DataBase Design
+### Normalization
+一种设计思想，让数据库的每张表只保存必要的信息，减少重复和冗余的信息。节省物理空间，提高查询效率。
+
+#### First Norm Form
+1. 没有重复的数据行。这里是指一摸一样的数据行。
+2. 每一列的每个实例数据，都只存储一个值而非多个值。比如一个表格是`个人信息`，有一列是`喜好`。没行数据的`喜好`只能是一个，篮球或者音乐或者游泳。而不能是既有篮球又有音乐或者游泳，或都有。
+3. 必须有一个Primary Key
+
+#### Second Norm Form
+1. 符合1st Norm Form
+2. 所有非primary Key的Column依赖于Primary Key列
+
+#### Third Norm Form
+1. 符合2nd Norm Form
+2. 所有非Primary Key只依赖于Primary Key
+
+### Relationships
