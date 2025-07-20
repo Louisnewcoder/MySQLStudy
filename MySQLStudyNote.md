@@ -563,3 +563,177 @@ Top Tools bar -> Database -> Reverse Engineer ->选择`目标connection`->选择
 2. 所有非Primary Key只依赖于Primary Key
 
 ### Relationships
+
+
+## Aggregate calculations
+### Count()
+`Count()`用来统计数据表或数据表的某列中非NULL值的总数。
+
+```sql
+select count(*) from customers; -- count(all rows) 包含null值
+
+select count(*) from customers
+where first_name is null;   -- 这里注意，如果传入的参数是列名，因为count本身不考虑NULL值，所以如果first_name中有null值，最后一个where子句并不会起到效果，得到的结果就是0行。因为不考虑NUll值，计算出来的都是有内容的行，不会出现带有NULL的行。所以要想获取first_name是null的行数的总数，要传入 * ，在从所有的结果中挑选出first_name是null的行数。
+
+select count(last_name) from customers; -- count( rows of target column) 不包含Null值
+
+select count(first_name)from customers; -- 指定列名不包含null值
+```
+
+### Sum()
+只针对数值类型如`int`或`decimal`类型的列，计算目标列的总值。虽然char的本质也是数值，但是计算这个没有意义。
+
+```sql
+select sum(no_seats)from rooms;
+
+select sum(no_seats) from rooms  -- 搭配WHERE Clause
+where id >1;
+```
+
+### Min/Max()
+支持类型：
+数值 - 按大小比较
+字符串 - 按字符顺序比较。 
+日期 - 按时间早晚比较。 Min最早，Max最晚
+二进制类型 - 按字节顺序比较
+枚举与集合 - 按定义顺序比较。 min 枚举ID最小， max 枚举ID最大
+JSON - 需要特殊处理
+```sql
+select min(length_min) from films;
+select max(length_min) from films;
+```
+
+### AVG() - Average 平均值
+仅支持数值类型。
+***自动忽略NULL值！！分母不把NULL值那一行算进去。比如10行数据有一行是NULL，结果 = 总数值/9行***
+***自动忽略NULL值！！分母不把NULL值那一行算进去。比如10行数据有一行是NULL，结果 = 总数值/9行***
+***自动忽略NULL值！！分母不把NULL值那一行算进去。比如10行数据有一行是NULL，结果 = 总数值/9行***
+```sql
+select avg(length_min) from films;
+
+select avg(length_min) from films  -- 结合WHERE 子句
+where length_min > 120;
+ 
+```
+### Group by 对数据进行分组
+`Group by` 的核心作用是服务于将数据按**列或多个列分组后**对其进行**聚合运算**。
+
+***语法： select 哪个或哪些列，这个或者这些列就要出现在Group by子句中***
+
+```sql
+select customer_id, count(customer_id) from bookings -- 以单列进行 group by
+group by customer_id; -- 参与group by的列需要出现在group by中
+
+
+select customer_id,screening_id, count(*) from bookings -- 以多个列的组合进行 group by
+group by customer_id,screening_id  -- 参与group by的列都要进入到group by的子句中
+order by customer_id;
+
+```
+
+
+没有聚合运算时是否可以使用`Group By`，答案是可以，但是并非标准用法而且极少。例如：
+```sql
+-- 下面两个语句效果等价，group by起到了 distinct 去重的作用 
+
+select customer_id from bookings
+group by customer_id;   -- 非标准使用，效果等于去重
+
+select distinct customer_id from bookings;
+```
+
+### HAVING 子句过滤Group By的结果
+`HAVING` 子句是应用于 `Group by子句结果`的*条件过滤语句*。其效果类似`WHERE`子句，但是应用在`Group By`之后。而`WHERE`应用在Group By之前。
+
+***重要事项： 虽然 having 和 where 的效果相同但是二者的执行过程和性能有明显差异***
+***Where是先过滤行，在有索引的情况下性能大大提升；而HAVING在执行之前 Group先扫描全表，所以性能要低***
+***所以一般情况先使用WHERE，比如id=2。只有当结果依赖于聚合运算的结果是 比如 count(*)>10 才使用Having。 ***
+
+```sql
+-- 效果一样但是 过程不同
+
+select customer_id , screening_id , count(*) from bookings
+group by customer_id , screening_id  -- 先扫描全表 group by
+Having customer_id =2   -- 然后过滤
+order by customer_id;
+
+select customer_id , screening_id , count(*) from bookings
+where customer_id=2 -- 先过滤
+group by customer_id , screening_id -- 然后再聚合
+order by customer_id;
+```
+
+## Sub-queries 子查询
+子查询是指在一个SQL语句中**嵌套**另一个`完整的SELECT查询语句`。**内层查询**的`结果`作为**外层查询**的`查询条件`或者`数据源`。
+
+子查询可以出现在：
+1. WHERE 子句 
+2. FROM 子句 - 作为派生表
+3. SELECT 子句 - 标量子查询
+4. HAVING 子句
+5. JOIN 子句
+
+**如果按返回值分类**：
+1. 标量子查询 - 返回单个值
+2. 列子查询 - 返回单列多行
+3. 行子查询 - 返回单行多列
+4. 表子查询 - 返回多行多列
+
+** 从关系性质分
+1. Non-Correlated subqueries
+    无相关性子查询作为内层嵌套查询，只运行一次
+2. Correlated subqueris
+    相关性子查询作为内层嵌套查询，外层循环运行一次，它就运行一次
+
+### 子查询的语法 - 起别名Aliase
+如果子查询的结果相当于是一个临时表（即多行/多列数据），就必须起别名。**通常在`FROM`或 `JOIN`的子句中**
+如果子查询结果是单值/单列，用于比较或作为输出的一部分，起别名可选。比如 `Select`。
+一般`WHERE`,`HAVING`,`IN`后面的内容都不起别名
+
+
+### Non-Correlated subquery
+虽然是嵌套查询，但是可以独立运行
+```sql
+select id, start_time from screenings   -- 外层查询
+where film_id in   -- where 子句 subquery
+	(select id from films       -- 内层查询
+		where length_min>=120); -- 内层查询条件
+
+-- example 2
+select first_name, last_name,email from customers
+where id in
+	(select customer_id from bookings 
+		where screening_id =2)
+;
+
+-- example 3 From后的子句需要 aliase
+select 
+max( temp.booked_seats_count) from 
+(select booking_id , count(seat_id) as booked_seats_count from reserved_seat
+group by booking_id) temp; -- 将子句的结果作为临时表并取名 temp
+```
+
+### Correlated subquery
+是嵌套查询，但是不能独立运行，因为它的查询可能需要外层的数据源作为支持。
+```sql
+-- 下面的例子中，内嵌自查群依赖外层的bookings数据源用于booking_id的验证
+select screening_id, customer_id,
+(select count(*) from reserved_seat where reserved_seat.booking_id = b.id)
+from bookings as b
+order by screening_id
+;
+```
+
+## MySQL FUNCTIONS
+### String Functions
+#### Concat - concatenate 链接字符串方法
+```sql
+-- example 将两个字符串列整合成一个
+select concat(first_name,last_name) as full_name from customers;
+
+-- example 手动加了个空格
+select concat(first_name,' ',last_name) as full_name from customers;
+
+-- example 随意合并任何字符串类型
+select concat('This is ',first_name,' ',last_name, " Email is ",email) as full_name from customers;
+```
