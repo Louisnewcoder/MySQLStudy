@@ -737,3 +737,58 @@ select concat(first_name,' ',last_name) as full_name from customers;
 -- example 随意合并任何字符串类型
 select concat('This is ',first_name,' ',last_name, " Email is ",email) as full_name from customers;
 ```
+
+*** 需要注意的是，如果Concat的参数中有一个值是Null，这个结果也会是null ***
+
+
+#### Substring - 剪切字符串
+```sql
+-- substring(string / Column Name, start, length)  length 是可选的，如果没有length 结果就是从start到结尾
+select substring('ILoveYou',2,4) as sub; -- 结果是 Love
+
+select substring(name,1,4) as short_name from films; -- 使用 column的字段作为第一个参数
+
+select substring('ILoveYou',-3,3) as sub; --结果是You。 负start index是从后往前数，但是长度依旧是从前往后
+
+```
+
+**注意1: 空格和标点都算1个位置**
+**注意2：index是从1开始，而不是0. 负start index是从后往前数，但是长度依旧是从前往后。**
+
+#### UPPER and LOWER
+```sql
+select upper('iLoveYou') as newName; -- ILOVEYOU
+
+select lower('ABCD') as newName; -- abcd
+
+-- 下面的例子是练习对比， 第二个是自己想复杂了，应该按照第一个的方式写
+
+select concat(substring(first_name,1,3), ' ' ,substring(last_name,1,3)) from customers;
+
+select concat( first,' ', last) from  
+(select substring(first_name,1,3)as first, substring(last_name,1,3) as last from customers) as t;
+
+```
+*从上面这个练习可以看出来，函数的调用不是必须要从`SELECT`开始，自己想复杂了。`SELECT只代表一个查询的开始`*
+
+### Date Fuctions
+`Year(<yyyy-mm-dd>)` 获取参数的年份
+`Month(<yyyy-mm-dd>)` 获取参数的月份
+`Date(<yyyy-mm-dd hh:mi:ss>)` 获取参数的日期 yyyy-mm-dd
+
+注意下面使用Date() 方法和不使用的区别
+```sql
+
+-- 如果使用了Date方法， 搜索结果会包含 2022-03-01当天的内容截至 2022-03-01 23:59:59.9999...
+select * from screenings
+where date(screenings.start_time) between '2022-01-01' and '2022-03-01';
+
+-- 如果不使用，相当于从2022-01-01开始到 2022-03-01 00:00:00。2022-03-01零点之后的时间都不包括
+select * from screenings
+where date(screenings.start_time) between '2022-01-01' and '2022-03-01';
+
+-- Month()
+ select month(screenings.start_time) as m,count(*) from screenings
+ group by m;
+
+```
